@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102a43">
+  <meta name="description" content="A live vote-counting dashboard demo for an Arduino voting machine.">
+  <title>Smart Vote — Live Count Demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --forest: #102a43;
+      --forest-deep: #0b1f33;
+      --green: #1d4e79;
+      --mint: #eaf1f8;
+      --gold: #efb94f;
+      --ink: #1c2e40;
+      --muted: #586a79;
+      --line: #e7ece6;
+      --paper: #fbfcf8;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 30px 20px;
+      color: var(--ink);
+      background: radial-gradient(ellipse at 10% 6%, #e4edf6 0, transparent 31%),
+                  radial-gradient(ellipse at 96% 90%, #eee9f7 0, transparent 27%), #f1f4f8;
+    }
+    button { font: inherit; }
+    .app { width: min(1040px, 100%); margin: 0 auto; overflow: hidden; border: 1px solid rgba(18,42,67,.1); border-radius: 26px; background: radial-gradient(ellipse at 100% 0,rgba(225,237,247,.42),transparent 28%),var(--paper); box-shadow: 0 28px 80px rgba(16,42,67,.15), 0 3px 10px rgba(16,42,67,.06); animation: welcome-enter .55s cubic-bezier(.2,.7,.2,1) both; }
+    .welcome-screen { position: relative; isolation: isolate; width: min(1040px, 100%); min-height: min(740px, calc(100vh - 60px)); margin: 0 auto; overflow: hidden; border: 1px solid rgba(18,42,67,.12); border-radius: 26px; background: var(--paper); box-shadow: 0 28px 80px rgba(24,52,42,.14), 0 3px 10px rgba(24,52,42,.05); animation: welcome-enter .65s cubic-bezier(.2,.7,.2,1) both; }
+    .welcome-nav { position: relative; z-index: 2; min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 30px; color: #f7fbff; background: linear-gradient(112deg, #102a43 0%, #14395c 58%, #1d4e79 100%); }
+    .welcome-nav .brand-mark { width: 46px; height: 46px; }
+    .welcome-nav .brand-name { font-size: 24px; }
+    .welcome-tag { padding: 8px 12px; border: 1px solid rgba(226,242,255,.25); border-radius: 999px; color: #e1edf7; background: rgba(255,255,255,.07); backdrop-filter: blur(8px); font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; }
+    .welcome-hero { position: relative; min-height: 590px; display: grid; grid-template-columns: minmax(0,1.2fr) minmax(250px,.8fr); align-items: center; gap: 48px; overflow: hidden; padding: 55px clamp(28px, 7vw, 76px); background: radial-gradient(ellipse at 90% 12%, #eaf1f8 0, transparent 32%), linear-gradient(135deg,#fbfcf8 4%,#f8fbfd 58%,#f0f5fa 100%); }
+    .welcome-hero::before { position: absolute; top: -245px; right: -180px; width: 550px; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle,rgba(59,122,174,.15),rgba(59,122,174,0) 69%); content: ""; pointer-events: none; animation: welcome-glow 7s ease-in-out infinite; }
+    .welcome-copy { position: relative; z-index: 1; max-width: 570px; animation: welcome-rise .7s .08s cubic-bezier(.2,.7,.2,1) both; }
+    .welcome-eyebrow { display: inline-flex; align-items: center; margin-bottom: 20px; padding: 8px 11px; border: 1px solid #dce7f2; border-radius: 999px; color: var(--green); background: rgba(255,255,255,.7); font-size: 12px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; }
+    .welcome-title { margin: 0; color: var(--forest); font-size: clamp(44px, 6.2vw, 70px); line-height: .98; letter-spacing: -1.6px; }
+    .welcome-tagline { max-width: 470px; margin: 23px 0 0; color: #566b7d; font-size: 20px; line-height: 1.45; }
+    .welcome-description { max-width: 440px; margin: 13px 0 25px; color: #718078; font-size: 15px; line-height: 1.65; }
+    .enter-button { position: relative; min-height: 54px; display: inline-flex; align-items: center; justify-content: center; gap: 11px; overflow: hidden; padding: 0 22px; border: 0; border-radius: 13px; color: #fff; background: linear-gradient(110deg,#1d4e79,#286b9e); box-shadow: 0 9px 20px rgba(16,42,67,.22); font: inherit; font-size: 15px; font-weight: 750; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
+    .enter-button::after { position: absolute; top: -40%; left: -65%; width: 42%; height: 180%; transform: skewX(-22deg); background: linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent); content: ""; transition: left .55s ease; pointer-events: none; }
+    .enter-button:hover { transform: translateY(-3px); background: linear-gradient(110deg,#173b5e,#215b88); box-shadow: 0 13px 25px rgba(16,42,67,.27); }
+    .enter-button:hover::after { left: 125%; }
+    .enter-button svg { width: 18px; height: 18px; transition: transform .18s ease; }
+    .enter-button:hover svg { transform: translateX(4px); }
+    .welcome-footnote { margin: 13px 0 0; color: #89958d; font-size: 11px; }
+    .welcome-visual { position: relative; z-index: 1; display: grid; place-items: center; min-height: 350px; animation: welcome-rise .8s .18s cubic-bezier(.2,.7,.2,1) both; }
+    .welcome-visual::before, .welcome-visual::after { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #efb94f; box-shadow: 0 0 0 7px rgba(239,185,79,.14),0 0 25px rgba(239,185,79,.48); content: ""; animation: welcome-float 4s ease-in-out infinite; pointer-events: none; }
+    .welcome-visual::before { top: 16%; right: 14%; }
+    .welcome-visual::after { bottom: 15%; left: 8%; width: 8px; height: 8px; background: #4d8bb8; box-shadow: 0 0 0 6px rgba(77,139,184,.12),0 0 22px rgba(77,139,184,.4); animation-delay: -1.4s; }
+    .welcome-orbit { position: absolute; width: min(320px, 80vw); aspect-ratio: 1; border: 1px solid #dbe6f0; border-radius: 50%; animation: welcome-spin 44s linear infinite; }
+    .welcome-orbit::before, .welcome-orbit::after { position: absolute; inset: 19px; border: 1px dashed #c7d7e7; border-radius: 50%; content: ""; }
+    .welcome-orbit::before { animation: welcome-spin 28s linear infinite reverse; }
+    .welcome-orbit::after { inset: 42px; border-style: solid; border-color: rgba(115,155,191,.42); opacity: .8; }
+    .welcome-feature { position: relative; width: min(290px, 100%); padding: 25px 22px 22px; transform: translateZ(0); border: 1px solid rgba(211,225,237,.9); border-radius: 22px; background: rgba(255,255,255,.84); box-shadow: 0 22px 60px rgba(16,42,67,.16); backdrop-filter: blur(12px); animation: welcome-float 5.2s ease-in-out infinite; transition: transform .25s ease, box-shadow .25s ease; }
+    .welcome-feature:hover { filter: brightness(1.015); box-shadow: 0 28px 65px rgba(16,42,67,.2); }
+    .welcome-feature-mark { width: 62px; height: 62px; display: grid; place-items: center; border-radius: 18px; color: #fff; background: linear-gradient(145deg,#102a43,#286b9e); box-shadow: 0 10px 22px rgba(16,42,67,.24); }
+    .welcome-feature-mark svg { width: 32px; height: 32px; }
+    .welcome-feature h2 { margin: 19px 0 6px; color: var(--forest); font-size: 21px; }
+    .welcome-feature p { margin: 0; color: #77837c; font-size: 12px; line-height: 1.6; }
+    .feature-list { display: grid; gap: 11px; margin-top: 19px; padding-top: 16px; border-top: 1px solid #edf0eb; }
+    .feature-item { display: flex; align-items: center; gap: 9px; color: #50645a; font-size: 11px; }
+    .feature-check { width: 19px; height: 19px; display: grid; place-items: center; flex: none; border-radius: 50%; color: #fff; background: linear-gradient(145deg,#1d4e79,#3c82b3); box-shadow: 0 3px 8px rgba(29,78,121,.2); font-size: 12px; }
+    @keyframes welcome-enter { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes welcome-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes welcome-spin { to { transform: rotate(360deg); } }
+    @keyframes welcome-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    @keyframes welcome-glow { 0%,100% { opacity: .55; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.08); } }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 30px; color: #f7fbff; background: linear-gradient(112deg,#102a43 0%,#14395c 58%,#1d4e79 100%); }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; color: var(--forest); background: #dce9f4; }
+    .brand-mark svg { width: 23px; height: 23px; }
+    .brand-name { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
+    .brand-caption { margin-top: 3px; color: #c0d3e3; font-size: 11px; font-weight: 700; letter-spacing: 1.15px; text-transform: uppercase; }
+    .top-label { display: inline-flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid rgba(226,242,229,.2); border-radius: 999px; color: #e3f2e6; background: rgba(255,255,255,.07); font-size: 12px; font-weight: 700; }
+    .top-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgba(239,185,79,.13); }
+    .dashboard-nav-actions { display: flex; align-items: center; gap: 9px; }
+    .back-button { min-height: 40px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid rgba(226,242,255,.24); border-radius: 10px; color: #edf5fb; background: rgba(255,255,255,.08); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .back-button:hover { background: rgba(255,255,255,.16); }
+    .back-button svg { width: 14px; height: 14px; }
+    .content { width: min(900px, 100%); margin: 0 auto; padding: 38px 30px 32px; animation: welcome-rise .55s .06s cubic-bezier(.2,.7,.2,1) both; }
+    .intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; }
+    .eyebrow { display: flex; align-items: center; gap: 8px; color: var(--green); font-size: 12px; font-weight: 800; letter-spacing: 1.25px; text-transform: uppercase; }
+    .eyebrow svg { width: 15px; height: 15px; }
+    h1 { margin: 13px 0 9px; font-size: clamp(34px, 4.2vw, 43px); line-height: 1.08; letter-spacing: -1.1px; }
+    .subtitle { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.55; }
+    .connection-actions { display: flex; flex: none; gap: 9px; }
+    .button { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 17px; border: 0; border-radius: 12px; font-size: 14px; font-weight: 780; cursor: pointer; transition: transform .15s ease, background .15s ease; }
+    .button:hover:not(:disabled) { transform: translateY(-1px); }
+    .button:disabled { opacity: .55; cursor: not-allowed; }
+    .connect-button { color: #fff; background: linear-gradient(110deg,#1d4e79,#286b9e); box-shadow: 0 5px 12px rgba(16,42,67,.18); }
+    .connect-button:hover:not(:disabled) { background: linear-gradient(110deg,#173b5e,#215b88); }
+    .light-button { border: 1px solid var(--line); color: #214d75; background: #fff; }
+    .light-button:hover:not(:disabled) { background: #eff4f9; }
+    .button svg { width: 16px; height: 16px; }
+    .status-line { display: flex; align-items: center; gap: 9px; margin-top: 23px; color: var(--muted); font-size: 14px; }
+    .status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #eadfbe; border-radius: 999px; color: #775f25; background: #fcf6e8; font-weight: 750; }
+    .status-pill.connected { border-color: #d5e8d7; color: #2e704b; background: #eef8ef; }
+    .status-pill.finalized { border-color: #ead49c; color: #684d0a; background: #fff0c8; }
+    .status-pill.error { border-color: #f0d5ce; color: #994b38; background: #fff2ef; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .status-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .summary-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; margin-top: 23px; }
+    .summary-card { min-height: 115px; padding: 19px 20px; border: 1px solid var(--line); border-radius: 17px; background: rgba(255,255,255,.88); box-shadow: 0 4px 13px rgba(16,42,67,.035); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+    .summary-card:hover { transform: translateY(-2px); border-color: #d1dfeb; box-shadow: 0 10px 22px rgba(16,42,67,.08); }
+    .summary-card.primary { border-color: #dce7f2; background: #f1f6fb; }
+    .summary-label { color: #536574; font-size: 12px; font-weight: 750; letter-spacing: .75px; text-transform: uppercase; }
+    .summary-number { display: block; margin-top: 10px; color: var(--forest); font-size: 35px; font-weight: 820; letter-spacing: -.7px; line-height: 1; }
+    .summary-foot { display: block; margin-top: 8px; color: #586a79; font-size: 13px; }
+    .moderator-panel { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; padding: 14px 17px; border: 1px solid #dce5ee; border-radius: 14px; background: linear-gradient(115deg,#f1f6fb,#f7f9fc); box-shadow: 0 5px 15px rgba(16,42,67,.045); }
+    .moderator-copy strong { display: block; color: var(--forest); font-size: 14px; }
+    .moderator-copy span { display: block; margin-top: 4px; color: #586a79; font-size: 12px; line-height: 1.4; }
+    .announce-button { flex: none; min-height: 42px; padding: 0 15px; border: 0; border-radius: 10px; color: #fff; background: linear-gradient(110deg,#102a43,#1d4e79); box-shadow: 0 5px 12px rgba(16,42,67,.15); font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; }
+    .announce-button:hover:not(:disabled) { background: #214e79; }
+    .announce-button:disabled { opacity: .55; cursor: not-allowed; }
+    .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 31px 0 14px; }
+    .section-heading h2 { margin: 0; font-size: 19px; letter-spacing: -.25px; }
+    .section-heading span { color: #586a79; font-size: 13px; }
+    .results { display: grid; gap: 10px; }
+    .candidate { padding: 17px 19px 16px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.9); transition: box-shadow .18s ease, border-color .18s ease, background .18s ease; }
+    .candidate:not(.is-leading):not(.is-trailing):hover { border-color: #cbd9e6; box-shadow: 0 8px 20px rgba(16,42,67,.07); }
+    .candidate.is-leading:hover { box-shadow: 0 5px 18px rgba(212,164,69,.15); }
+    .candidate.is-trailing:hover { box-shadow: 0 5px 18px rgba(201,99,79,.1); }
+    .candidate.is-leading { border-color: #d6aa4e; background: #fffaf0; box-shadow: 0 0 0 2px rgba(212,164,69,.12); }
+    .candidate.is-trailing { border-color: #e4b6ae; background: #fff8f7; }
+    .candidate-top { display: grid; grid-template-columns: 48px minmax(0,1fr) auto; align-items: center; gap: 14px; }
+    .candidate-info { min-width: 0; }
+    .candidate-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }
+    .symbol { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--candidate-color), white 68%); border-radius: 13px; color: var(--candidate-color); background: color-mix(in srgb, var(--candidate-color), white 88%); font-size: 26px; }
+    .candidate-name { display: block; overflow: hidden; font-size: 17px; font-weight: 790; text-overflow: ellipsis; white-space: nowrap; }
+    .candidate-state { display: inline-flex; flex: none; align-items: center; min-height: 23px; padding: 3px 8px; border: 1px solid #dbe4ec; border-radius: 999px; color: #42596d; background: #eff4f8; font-size: 11px; font-weight: 750; line-height: 1.1; }
+    .candidate-state.is-leading { border-color: #ead49c; color: #684d0a; background: #fff0c8; }
+    .candidate-state.is-trailing { border-color: #ecc4bc; color: #963d33; background: #ffebe7; }
+    .candidate-state.is-tied { border-color: #c9d8e7; color: #274e73; background: #eaf2fa; }
+    .candidate-state.is-neutral { border-color: #e1e6eb; color: #5b6874; background: #f2f4f6; }
+    .candidate-party { display: block; margin-top: 5px; color: var(--muted); font-size: 13px; }
+    .candidate-description { display: -webkit-box; overflow: hidden; margin-top: 5px; color: #536574; font-size: 13px; line-height: 1.4; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .candidate-votes { min-width: 82px; text-align: right; }
+    .vote-count { display: block; font-size: 25px; font-weight: 820; letter-spacing: -.4px; }
+    .vote-label { display: block; margin-top: 3px; color: #586a79; font-size: 12px; }
+    .bar-row { display: flex; align-items: center; gap: 11px; margin: 14px 0 0 62px; }
+    .bar-track { height: 9px; flex: 1; overflow: hidden; border-radius: 999px; background: #edf0eb; }
+    .bar-fill { width: 0; height: 100%; border-radius: inherit; background: color-mix(in srgb, var(--candidate-color), #102a43 18%); transition: width .35s ease; }
+    .percent { width: 38px; color: #536574; font-size: 12px; text-align: right; }
+    .mini-button.edit-button { border: 1px solid #bf3434; color: #fff; background: #c43b3b; }
+    .mini-button.edit-button:hover { border-color: #a92e32; color: #fff; background: #a92e32; }
+    .candidate-editor { margin: 0 0 13px; padding: 17px; border: 1px solid #dce5ee; border-radius: 17px; background: linear-gradient(145deg,#f4f8fc,#fbfcfe); box-shadow: 0 7px 22px rgba(16,42,67,.05); }
+    .editor-intro { margin: 0 0 12px; color: #586a79; font-size: 13px; line-height: 1.55; }
+    .editor-fields { display: grid; gap: 11px; }
+    .editor-candidate { padding: 14px; border: 1px solid #e0e7ed; border-radius: 13px; background: rgba(255,255,255,.94); box-shadow: 0 3px 10px rgba(16,42,67,.03); transition: border-color .18s ease, box-shadow .18s ease; }
+    .editor-candidate:hover { border-color: #c9d9e7; box-shadow: 0 7px 17px rgba(16,42,67,.07); }
+    .editor-candidate-title { margin-bottom: 10px; color: var(--forest); font-size: 14px; font-weight: 800; }
+    .editor-grid { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(135px,.65fr); gap: 10px; }
+    .editor-field.full { grid-column: 1 / -1; }
+    .editor-field { min-width: 0; }
+    .editor-field label { display: block; margin: 0 0 5px; color: #536574; font-size: 12px; font-weight: 750; }
+    .editor-field input { width: 100%; min-height: 44px; padding: 0 11px; border: 1px solid #dce4d9; border-radius: 9px; color: var(--ink); background: #fff; font: inherit; font-size: 15px; }
+    .editor-field input[aria-invalid="true"], .editor-field textarea[aria-invalid="true"] { border-color: #c9634f; box-shadow: 0 0 0 2px rgba(201,99,79,.1); }
+    .editor-field input[type="color"] { padding: 5px; cursor: pointer; }
+    .editor-field textarea { width: 100%; min-height: 72px; padding: 9px 11px; resize: vertical; border: 1px solid #dce4d9; border-radius: 9px; color: var(--ink); background: #fff; font: inherit; font-size: 15px; line-height: 1.45; }
+    .editor-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+    .editor-message { flex: 1; color: #586a79; font-size: 13px; }
+    .editor-actions .button { min-height: 42px; padding-inline: 14px; font-size: 13px; }
+    .demo-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding: 14px 16px; border: 1px dashed #dce3d9; border-radius: 13px; color: #586a79; background: #fafbf7; font-size: 13px; }
+    .demo-controls strong { color: #52655a; }
+    .demo-votes { display: flex; flex-wrap: wrap; gap: 7px; }
+    .edit-actions-row { display: flex; justify-content: flex-end; margin-top: 12px; }
+    .mini-button { min-height: 36px; padding: 0 11px; border: 1px solid #dce5ee; border-radius: 9px; color: #214d75; background: #fff; font-size: 12px; font-weight: 750; cursor: pointer; }
+    .mini-button:hover { background: #eff4f9; }
+    .mini-button:disabled { opacity: .55; cursor: not-allowed; }
+    .hardware-card { display: grid; grid-template-columns: 1fr 1fr; gap: 17px; margin-top: 25px; padding: 19px 20px; border: 1px solid #e2e8ee; border-radius: 17px; background: linear-gradient(125deg,#fff,#f7f9fb); box-shadow: 0 6px 18px rgba(16,42,67,.04); }
+    .hardware-card h3 { margin: 0 0 8px; font-size: 16px; }
+    .hardware-card p { margin: 0; color: #586a79; font-size: 13px; line-height: 1.65; }
+    .pin-list { color: #50645a; font-weight: 700; }
+    .footer-note { margin: 16px 0 0; color: #586a79; font-size: 12px; line-height: 1.6; text-align: center; }
+    .modal-backdrop { position: fixed; z-index: 10; inset: 0; display: none; place-items: center; padding: 20px; background: rgba(8,25,41,.58); backdrop-filter: blur(4px); }
+    .modal-backdrop.open { display: grid; }
+    .modal { width: min(470px, 100%); padding: 25px; border: 1px solid rgba(255,255,255,.65); border-radius: 20px; background: #fff; box-shadow: 0 24px 75px rgba(0,0,0,.24); }
+    .modal-icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 15px; color: #173b5e; background: #eaf1f8; font-size: 24px; }
+    .modal h2 { margin: 16px 0 8px; color: var(--forest); font-size: 23px; }
+    .modal-copy { margin: 0; color: #586a79; font-size: 14px; line-height: 1.6; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+    .winner-score-list { display: grid; gap: 9px; margin-top: 17px; }
+    .winner-score { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid color-mix(in srgb, var(--candidate-color), white 70%); border-radius: 12px; background: color-mix(in srgb, var(--candidate-color), white 92%); }
+    .winner-symbol { width: 42px; height: 42px; display: grid; place-items: center; flex: none; border-radius: 11px; color: var(--candidate-color); font-size: 23px; }
+    .winner-candidate-name { flex: 1; color: var(--forest); font-size: 15px; font-weight: 750; }
+    .winner-vote-total { color: var(--forest); font-size: 17px; font-weight: 800; white-space: nowrap; }
+    :focus-visible { outline: 3px solid #e5ad3f; outline-offset: 3px; }
+    @media (max-width: 680px) {
+      body { padding: 0; background: var(--paper); }
+      .welcome-screen { min-height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
+      .welcome-nav { min-height: 68px; padding: 14px 20px; }
+      .welcome-nav .brand-mark { width: 40px; height: 40px; }
+      .welcome-nav .brand-name { font-size: 22px; }
+      .welcome-hero { min-height: calc(100vh - 68px); grid-template-columns: 1fr; gap: 24px; padding: 42px 24px 32px; }
+      .welcome-visual { min-height: 290px; }
+      .welcome-orbit { width: 270px; }
+      .app { min-height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
+      .topbar { padding: 17px 20px; }
+      .brand-mark { width: 38px; height: 38px; }
+      .top-label { padding: 8px 10px; font-size: 11px; }
+      .content { padding: 27px 20px 22px; }
+      .intro { display: block; }
+      .connection-actions { margin-top: 17px; }
+      .connection-actions .button { flex: 1; }
+      .moderator-panel { align-items: flex-start; flex-direction: column; }
+      .announce-button { width: 100%; }
+      .status-line { align-items: flex-start; flex-wrap: wrap; }
+      .status-detail { flex: 1 1 100%; white-space: normal; }
+      .section-heading { flex-wrap: wrap; }
+      .section-heading span { font-size: 12px; }
+      .summary-grid { gap: 8px; }
+      .summary-card { min-height: 92px; padding: 14px 12px; }
+      .summary-number { font-size: 29px; }
+      .summary-label { font-size: 11px; }
+      .hardware-card { grid-template-columns: 1fr; gap: 13px; }
+      .editor-grid { grid-template-columns: minmax(0,1fr) 120px; }
+      .editor-message { flex-basis: 100%; }
+      .editor-actions { flex-wrap: wrap; }
+    }
+    @media (max-width: 390px) {
+      .welcome-nav { padding-inline: 15px; }
+      .welcome-tag { padding: 7px 8px; font-size: 9px; }
+      .welcome-hero { padding-inline: 19px; }
+      .welcome-title { font-size: 46px; }
+      .welcome-tagline { font-size: 18px; }
+      .topbar { padding-inline: 14px; }
+      .content { padding-inline: 15px; }
+      .brand-caption { letter-spacing: .6px; }
+      .brand-name { font-size: 19px; }
+      .top-label { gap: 6px; padding: 7px 8px; font-size: 10px; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .summary-card.primary { grid-column: span 2; }
+      .demo-controls { align-items: flex-start; flex-direction: column; }
+      .candidate { padding-inline: 12px; }
+      .candidate-name { font-size: 16px; }
+      .candidate-party, .candidate-description { font-size: 12px; }
+      .editor-grid { grid-template-columns: minmax(0,1fr); }
+      .editor-field.full { grid-column: auto; }
+    }
+    @media (min-width: 681px) and (max-height: 700px) {
+      body { padding-block: 12px; }
+      .welcome-screen { min-height: calc(100vh - 24px); }
+      .welcome-hero { min-height: calc(100vh - 100px); gap: 26px; padding-block: 25px; }
+      .welcome-title { font-size: clamp(40px, 5vw, 54px); }
+      .welcome-tagline { margin-top: 14px; font-size: 18px; }
+      .welcome-description { margin: 9px 0 17px; font-size: 14px; }
+      .welcome-visual { min-height: 280px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <main class="welcome-screen" id="welcomeView" aria-labelledby="welcomeTitle">
+    <header class="welcome-nav">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M8 3.5h7l3 3v6H9l-1-1V3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M15 3.5v3h3M10.3 8.2l1.2 1.2 2.5-2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 13h16l-1.4 7H5.4L4 13Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m9 13 1.5 2h3l1.5-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div><div class="brand-name">Smart Vote</div><div class="brand-caption">Arduino vote counter</div></div>
+      </div>
+      <span class="welcome-tag">Project demo</span>
+    </header>
+    <section class="welcome-hero">
+      <div class="welcome-copy">
+        <div class="welcome-eyebrow">A clearer way to count</div>
+        <h1 class="welcome-title" id="welcomeTitle">Welcome to<br>Smart Vote.</h1>
+        <p class="welcome-tagline">Every vote counts. Every voice matters.</p>
+        <p class="welcome-description">Follow candidate totals as they arrive from your Arduino voting machine, all in one simple live dashboard.</p>
+        <button class="enter-button" id="enterAppButton" type="button">Enter Smart Vote <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <p class="welcome-footnote">Connect your Arduino from inside the dashboard.</p>
+      </div>
+      <div class="welcome-visual" aria-hidden="true">
+        <div class="welcome-orbit"></div>
+        <div class="welcome-feature">
+          <div class="welcome-feature-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M8 3.5h7l3 3v6H9l-1-1V3.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M15 3.5v3h3m-7.7 1.7 1.2 1.2 2.5-2.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 13h16l-1.4 7H5.4L4 13Zm5 0 1.5 2h3l1.5-2" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+          <h2>Ready for the count</h2>
+          <p>A focused view of the totals that matter, updated from your connected voting machine.</p>
+          <div class="feature-list"><div class="feature-item"><span class="feature-check">✓</span> Live candidate results</div><div class="feature-item"><span class="feature-check">✓</span> Simple Arduino connection</div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <main class="app" id="dashboardView" aria-label="Smart Vote counting dashboard" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M8 3.5h7l3 3v6H9l-1-1V3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M15 3.5v3h3M10.3 8.2l1.2 1.2 2.5-2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 13h16l-1.4 7H5.4L4 13Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m9 13 1.5 2h3l1.5-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div><div class="brand-name">Smart Vote</div><div class="brand-caption">Arduino vote counter</div></div>
+      </div>
+      <div class="dashboard-nav-actions">
+        <button class="back-button" id="backToWelcomeButton" type="button"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 12H5m6 6-6-6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Back</button>
+        <div class="top-label"><span class="top-dot"></span> Live count dashboard</div>
+      </div>
+    </header>
+
+    <div class="content">
+      <section aria-labelledby="pageTitle">
+        <div class="intro">
+          <div>
+            <div class="eyebrow"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 19V5m0 14h16M8 15v-4m4 4V7m4 8V9m4 6V4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Project prototype · Results</div>
+            <h1 id="pageTitle" tabindex="-1">Live vote count</h1>
+            <p class="subtitle">See each candidate’s total update as votes arrive from the voting machine.</p>
+          </div>
+          <div class="connection-actions">
+            <button class="button connect-button" id="connectButton" type="button"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v18m0-18 4 4m-4-4L8 7m4 5 6-6 3 3-6 6m-3 3-4 4-3-3 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="connectLabel">Connect Arduino</span></button>
+            <button class="button light-button" id="sampleButton" type="button">Reset sample</button>
+          </div>
+        </div>
+
+        <div class="status-line" role="status" aria-live="polite">
+          <span class="status-pill" id="statusPill"><span class="status-dot"></span><span id="statusLabel">Demo preview</span></span>
+          <span class="status-detail" id="statusDetail">Sample totals are shown. Connect an Arduino to display its counts.</span>
+        </div>
+
+        <div class="summary-grid" aria-label="Election summary">
+          <div class="summary-card primary"><span class="summary-label">Total votes</span><strong class="summary-number" id="totalVotes">28</strong><span class="summary-foot" id="updateTime">Sample data</span></div>
+          <div class="summary-card"><span class="summary-label">Candidates</span><strong class="summary-number">4</strong><span class="summary-foot">On this demo ballot</span></div>
+          <div class="summary-card"><span class="summary-label">Current lead</span><strong class="summary-number" id="leaderName" style="font-size:24px">Ananya</strong><span class="summary-foot" id="leaderFoot">12 votes</span></div>
+        </div>
+        <div class="moderator-panel">
+          <div class="moderator-copy"><strong>Winner</strong><span>Declare a winner after voting has ended and all votes are counted.</span></div>
+          <button class="announce-button" id="announceWinnerButton" type="button">Declare final winner</button>
+        </div>
+
+        <div class="section-heading"><h2>Candidate results</h2><span id="resultsCaption">Sample results · updates as votes arrive</span></div>
+        <div class="results" id="results" aria-live="polite"></div>
+        <div class="demo-controls" id="demoControls">
+          <span><strong>Demo controls</strong> · Add sample votes to preview the count screen.</span>
+          <div class="demo-votes" id="demoVotes"></div>
+        </div>
+        <div class="edit-actions-row"><button class="mini-button edit-button" id="editToggle" type="button">Edit candidates</button></div>
+
+        <section class="hardware-card" aria-label="Hardware setup">
+          <div><h3>Connect the Arduino</h3><p>Plug the board into this computer with USB, upload the included Arduino sketch, then select its serial port using <strong>Connect Arduino</strong>. Use Chrome or Edge for USB serial access.</p></div>
+          <div><h3>Button wiring</h3><p>Wire one push button per candidate between the Arduino pin and GND. The sketch uses internal pull-ups: <span class="pin-list">D2 · Candidate 1, D3 · Candidate 2, D4 · Candidate 3, D5 · Candidate 4.</span></p></div>
+        </section>
+        <p class="footer-note">Demo only: counts are held in Arduino memory and clear when the board restarts. This prototype is not designed or certified for a real election.</p>
+      </section>
+    </div>
+  </main>
+
+  <main class="app" id="editorView" aria-label="Edit candidate details" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M8 3.5h7l3 3v6H9l-1-1V3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M15 3.5v3h3M10.3 8.2l1.2 1.2 2.5-2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 13h16l-1.4 7H5.4L4 13Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m9 13 1.5 2h3l1.5-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div><div class="brand-name">Smart Vote</div><div class="brand-caption">Candidate settings</div></div>
+      </div>
+      <div class="dashboard-nav-actions">
+        <button class="back-button" id="editorBackButton" type="button"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 12H5m6 6-6-6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Back to results</button>
+      </div>
+    </header>
+    <div class="content">
+      <section aria-labelledby="editorPageTitle">
+        <div class="intro"><div>
+          <div class="eyebrow">Candidate settings · Edit</div>
+          <h1 id="editorPageTitle" tabindex="-1">Edit candidates</h1>
+          <p class="subtitle">Update each candidate’s name, group, description, symbol, and display colour.</p>
+        </div></div>
+        <form class="candidate-editor" id="candidateEditor">
+          <p class="editor-intro">Changes are saved in this browser and shown on the results dashboard. Candidate order remains connected to the same Arduino vote buttons.</p>
+          <div class="editor-fields" id="candidateFields"></div>
+          <div class="editor-actions"><span class="editor-message" id="editorMessage" role="status" aria-live="polite"></span><button class="button light-button" id="cancelEdits" type="button">Cancel</button><button class="button connect-button" type="submit">Save and return</button></div>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <div class="modal-backdrop" id="winnerDialog" role="presentation">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="winnerConfirmTitle" aria-describedby="winnerConfirmCopy">
+      <div id="winnerConfirmStep">
+        <div class="modal-icon" aria-hidden="true">⚑</div>
+        <h2 id="winnerConfirmTitle">Confirm the final count</h2>
+        <p class="modal-copy" id="winnerConfirmCopy">Make sure voting has ended and all votes are included. Confirming freezes this dashboard’s displayed totals and announces the result.</p>
+        <div class="modal-actions"><button class="button light-button" id="cancelDeclareButton" type="button">Go back</button><button class="button connect-button" id="confirmDeclareButton" type="button">Confirm and announce</button></div>
+      </div>
+      <div id="winnerResultStep" hidden>
+        <div class="modal-icon" aria-hidden="true">🏆</div>
+        <h2 id="winnerResultTitle">Winner announced</h2>
+        <p class="modal-copy" id="winnerResultCopy"></p>
+        <div class="winner-score-list" id="winnerScoreList"></div>
+        <div class="modal-actions"><button class="button connect-button" id="closeWinnerButton" type="button">Close</button></div>
+      </div>
+      <div id="newCountConfirmStep" hidden>
+        <div class="modal-icon" aria-hidden="true">↻</div>
+        <h2 id="newCountTitle">Start a new count?</h2>
+        <p class="modal-copy" id="newCountCopy">This clears the current tally and starts a fresh count. The previous result will no longer be shown on this dashboard.</p>
+        <div class="modal-actions"><button class="button light-button" id="cancelNewCountButton" type="button">Keep result</button><button class="button connect-button" id="confirmNewCountButton" type="button">Start new count</button></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const defaultCandidates = [
+        { name: 'Ananya Rao', party: 'People First', description: 'A sample candidate focused on community services.', symbol: '☀', color: '#d4a445' },
+        { name: 'Kabir Mehta', party: 'Green Future', description: 'A sample candidate focused on greener neighborhoods.', symbol: '✿', color: '#58a474' },
+        { name: 'Mira Das', party: 'Community Voice', description: 'A sample candidate focused on local participation.', symbol: '◆', color: '#9074bb' },
+        { name: 'Arjun Sen', party: 'United Neighbours', description: 'A sample candidate focused on neighborhood support.', symbol: '★', color: '#c17956' }
+      ];
+      const candidateStorageKey = 'smartVoteCandidates';
+      const candidates = loadCandidates();
+      const sampleCounts = [12, 8, 5, 3];
+      let voteCounts = [...sampleCounts];
+      let serialPort = null;
+      let serialReader = null;
+      let connected = false;
+      let serialBusy = false;
+      let disconnectRequested = false;
+      let resultsFinalized = false;
+      const $ = id => document.getElementById(id);
+
+      function loadCandidates() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(candidateStorageKey));
+          if (!Array.isArray(saved) || saved.length !== defaultCandidates.length) return defaultCandidates.map(candidate => ({ ...candidate }));
+          return defaultCandidates.map((candidate, index) => {
+            const savedCandidate = saved[index] || {};
+            const name = typeof savedCandidate.name === 'string' && savedCandidate.name.trim() ? savedCandidate.name.trim().slice(0, 40) : candidate.name;
+            const party = typeof savedCandidate.party === 'string' ? savedCandidate.party.trim().slice(0, 50) : candidate.party;
+            const description = typeof savedCandidate.description === 'string' ? savedCandidate.description.trim().slice(0, 160) : candidate.description;
+            const symbol = typeof savedCandidate.symbol === 'string' && savedCandidate.symbol.trim() ? savedCandidate.symbol.trim().slice(0, 8) : candidate.symbol;
+            const color = typeof savedCandidate.color === 'string' && /^#[0-9a-f]{6}$/i.test(savedCandidate.color) ? savedCandidate.color : candidate.color;
+            return { ...candidate, name, party, description, symbol, color };
+          });
+        } catch (_) {
+          return defaultCandidates.map(candidate => ({ ...candidate }));
+        }
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+      }
+
+      function totalCount() { return voteCounts.reduce((sum, count) => sum + count, 0); }
+
+      function render() {
+        const total = totalCount();
+        const highestCount = Math.max(...voteCounts);
+        const lowestCount = Math.min(...voteCounts);
+        const leadingCount = voteCounts.filter(count => count === highestCount).length;
+        const trailingCount = voteCounts.filter(count => count === lowestCount).length;
+        const ordinal = rank => `${rank}${rank % 10 === 1 && rank % 100 !== 11 ? 'st' : rank % 10 === 2 && rank % 100 !== 12 ? 'nd' : rank % 10 === 3 && rank % 100 !== 13 ? 'rd' : 'th'}`;
+        $('totalVotes').textContent = total.toLocaleString();
+        $('updateTime').textContent = connected ? `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Sample data';
+        const highest = Math.max(...voteCounts);
+        const leaders = voteCounts.map((count, index) => count === highest ? candidates[index] : null).filter(Boolean);
+        if (total === 0) {
+          $('leaderName').textContent = '—';
+          $('leaderFoot').textContent = 'Waiting for first vote';
+        } else if (leaders.length > 1) {
+          $('leaderName').textContent = 'Tie';
+          $('leaderFoot').textContent = leaders.map(candidate => candidate.name.split(' ')[0]).join(' · ');
+        } else {
+          $('leaderName').textContent = leaders[0].name.split(' ')[0];
+          $('leaderFoot').textContent = `${highest.toLocaleString()} ${highest === 1 ? 'vote' : 'votes'}`;
+        }
+        $('results').innerHTML = candidates.map((candidate, index) => {
+          const count = voteCounts[index];
+          const percent = total ? Math.round((count / total) * 100) : 0;
+          let rankClass = 'is-middle';
+          let rankLabel = '';
+          if (total === 0) {
+            rankClass = 'is-neutral';
+            rankLabel = 'Waiting';
+          } else if (highestCount === lowestCount) {
+            rankClass = 'is-tied';
+            rankLabel = 'Tied';
+          } else if (count === highestCount) {
+            rankClass = 'is-leading';
+            rankLabel = leadingCount > 1 ? 'Tied for lead' : 'In the lead';
+          } else if (count === lowestCount) {
+            rankClass = 'is-trailing';
+            rankLabel = trailingCount > 1 ? 'Tied lowest' : 'Trailing';
+          } else {
+            const rank = [...voteCounts].sort((a, b) => b - a).indexOf(count) + 1;
+            const candidatesAtRank = voteCounts.filter(value => value === count).length;
+            rankLabel = candidatesAtRank > 1 ? `Tied ${ordinal(rank)}` : ordinal(rank);
+          }
+          return `<article class="candidate ${rankClass === 'is-middle' ? '' : rankClass}" style="--candidate-color:${candidate.color}" aria-label="${escapeHtml(candidate.name)}: ${count} votes, ${percent} percent, ${rankLabel}">
+            <div class="candidate-top"><span class="symbol" aria-hidden="true">${escapeHtml(candidate.symbol)}</span>
+              <span class="candidate-info"><span class="candidate-title-row"><span class="candidate-name">${escapeHtml(candidate.name)}</span><span class="candidate-state ${rankClass}">${rankLabel}</span></span>${candidate.party ? `<span class="candidate-party">${escapeHtml(candidate.party)}</span>` : ''}${candidate.description ? `<span class="candidate-description">${escapeHtml(candidate.description)}</span>` : ''}</span>
+              <span class="candidate-votes"><strong class="vote-count">${count.toLocaleString()}</strong><span class="vote-label">${count === 1 ? 'vote' : 'votes'}</span></span>
+            </div><div class="bar-row"><div class="bar-track" aria-hidden="true"><div class="bar-fill" style="width:${percent}%"></div></div><span class="percent">${percent}%</span></div>
+          </article>`;
+        }).join('');
+        $('demoVotes').innerHTML = candidates.map((candidate, index) => `<button type="button" class="mini-button" data-demo-index="${index}" ${connected || resultsFinalized ? 'disabled' : ''}>+1 ${escapeHtml(candidate.name.split(' ')[0])}</button>`).join('');
+        $('demoControls').hidden = connected || resultsFinalized;
+        $('sampleButton').disabled = connected || resultsFinalized;
+        $('announceWinnerButton').disabled = !resultsFinalized && total === 0;
+        $('announceWinnerButton').textContent = resultsFinalized ? 'Start new count' : 'Declare final winner';
+        $('resultsCaption').textContent = connected ? 'Live from Arduino · updates as votes arrive' : 'Sample results · updates as votes arrive';
+      }
+
+      function renderCandidateEditor() {
+        $('candidateFields').innerHTML = candidates.map((candidate, index) => `<section class="editor-candidate" aria-label="Edit candidate ${index + 1}">
+          <div class="editor-candidate-title">Candidate ${index + 1}</div><div class="editor-grid">
+          <div class="editor-field"><label for="candidate-name-${index}">Name</label><input id="candidate-name-${index}" type="text" maxlength="40" required value="${escapeHtml(candidate.name)}" autocomplete="off"></div>
+          <div class="editor-field"><label for="candidate-symbol-${index}">Symbol</label><input id="candidate-symbol-${index}" type="text" maxlength="8" required value="${escapeHtml(candidate.symbol)}" autocomplete="off"></div>
+          <div class="editor-field"><label for="candidate-party-${index}">Party or group</label><input id="candidate-party-${index}" type="text" maxlength="50" value="${escapeHtml(candidate.party)}" autocomplete="off"></div>
+          <div class="editor-field"><label for="candidate-color-${index}">Candidate colour</label><input id="candidate-color-${index}" type="color" value="${candidate.color}" aria-label="Candidate ${index + 1} colour"></div>
+          <div class="editor-field full"><label for="candidate-description-${index}">Description</label><textarea id="candidate-description-${index}" maxlength="160" placeholder="Add a short description">${escapeHtml(candidate.description)}</textarea></div>
+          </div>
+        </section>`).join('');
+        $('editorMessage').textContent = '';
+      }
+
+      function openCandidateEditorPage() {
+        renderCandidateEditor();
+        $('dashboardView').hidden = true;
+        $('editorView').hidden = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        $('editorPageTitle').focus();
+      }
+
+      function returnToDashboard() {
+        $('editorView').hidden = true;
+        $('dashboardView').hidden = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        $('editToggle').focus();
+      }
+
+      function saveCandidateEdits(event) {
+        event.preventDefault();
+        let valid = true;
+        const edited = candidates.map((candidate, index) => {
+          const nameInput = $(`candidate-name-${index}`);
+          const symbolInput = $(`candidate-symbol-${index}`);
+          const partyInput = $(`candidate-party-${index}`);
+          const descriptionInput = $(`candidate-description-${index}`);
+          const colorInput = $(`candidate-color-${index}`);
+          const name = nameInput.value.trim();
+          const symbol = symbolInput.value.trim();
+          const party = partyInput.value.trim();
+          const description = descriptionInput.value.trim();
+          const color = colorInput.value;
+          const symbolLength = Array.from(symbol).length;
+          const nameValid = name.length > 0 && name.length <= 40;
+          const symbolValid = symbolLength > 0 && symbolLength <= 8;
+          const partyValid = party.length <= 50;
+          const descriptionValid = description.length <= 160;
+          const colorValid = /^#[0-9a-f]{6}$/i.test(color);
+          nameInput.setAttribute('aria-invalid', String(!nameValid));
+          symbolInput.setAttribute('aria-invalid', String(!symbolValid));
+          partyInput.setAttribute('aria-invalid', String(!partyValid));
+          descriptionInput.setAttribute('aria-invalid', String(!descriptionValid));
+          if (!nameValid || !symbolValid || !partyValid || !descriptionValid || !colorValid) valid = false;
+          return { ...candidate, name, party, description, symbol, color };
+        });
+        if (!valid) {
+          $('editorMessage').textContent = 'Add a name and symbol for each candidate. Keep descriptions under 160 characters.';
+          return;
+        }
+
+        edited.forEach((candidate, index) => Object.assign(candidates[index], candidate));
+        let savedToBrowser = true;
+        try { localStorage.setItem(candidateStorageKey, JSON.stringify(candidates)); }
+        catch (_) { savedToBrowser = false; }
+        render();
+        setStatus(connected ? 'connected' : 'demo', connected ? 'Arduino connected' : 'Demo preview', savedToBrowser ? 'Candidate details saved in this browser.' : 'Candidate details applied for this session; browser storage is unavailable.');
+        returnToDashboard();
+      }
+
+      function setStatus(mode, label, detail) {
+        $('statusPill').classList.toggle('connected', mode === 'connected');
+        $('statusPill').classList.toggle('error', mode === 'error');
+        $('statusPill').classList.toggle('finalized', mode === 'finalized');
+        $('statusLabel').textContent = label;
+        $('statusDetail').textContent = detail;
+      }
+
+      function updateConnectionControls() {
+        $('connectLabel').textContent = connected ? 'Disconnect' : 'Connect Arduino';
+        $('connectButton').disabled = serialBusy || (!connected && !('serial' in navigator));
+      }
+
+      function setCounts(counts) {
+        voteCounts = counts;
+        render();
+      }
+
+      function handleSerialLine(line) {
+        if (resultsFinalized) return;
+        if (!line.trim()) return;
+        try {
+          const message = JSON.parse(line);
+          if (message.type !== 'vote_count' || !Array.isArray(message.votes) || message.votes.length !== candidates.length) {
+            throw new Error('Unexpected data. Upload the matching Arduino sketch.');
+          }
+          const counts = message.votes;
+          if (!counts.every(count => Number.isSafeInteger(count) && count >= 0)) throw new Error('Vote totals must be whole numbers zero or higher.');
+          const sum = counts.reduce((acc, count) => acc + count, 0);
+          if (message.total !== undefined && message.total !== sum) throw new Error('The received total does not match the candidate counts.');
+          setCounts(counts);
+          setStatus('connected', 'Arduino connected', `Receiving vote totals · ${sum.toLocaleString()} votes counted`);
+        } catch (error) {
+          if (error instanceof SyntaxError) {
+            setStatus('error', 'Reading data', 'Waiting for a complete vote-count message from the Arduino.');
+          } else {
+            setStatus('error', 'Data format issue', error.message);
+          }
+        }
+      }
+
+      async function readSerial(port) {
+        const decoder = new TextDecoder();
+        let buffer = '';
+        serialReader = port.readable.getReader();
+        try {
+          while (true) {
+            const { value, done } = await serialReader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split(/\r?\n/);
+            buffer = lines.pop() || '';
+            if (buffer.length > 4096) buffer = '';
+            lines.forEach(handleSerialLine);
+          }
+        } catch (error) {
+          if (serialPort === port && connected) setStatus('error', 'Connection interrupted', error.message || 'The serial connection stopped.');
+        } finally {
+          if (serialReader) {
+            try { serialReader.releaseLock(); } catch (_) {}
+            serialReader = null;
+          }
+          if (serialPort === port) {
+            try { await port.close(); } catch (_) {}
+            serialPort = null;
+            connected = false;
+            serialBusy = false;
+            updateConnectionControls();
+            setStatus(disconnectRequested ? 'demo' : 'error', disconnectRequested ? 'Disconnected' : 'Arduino disconnected', 'The last received totals remain visible. Reconnect to continue.');
+            disconnectRequested = false;
+            render();
+          }
+        }
+      }
+
+      async function disconnectArduino() {
+        if (!serialPort) return;
+        serialBusy = true;
+        disconnectRequested = true;
+        updateConnectionControls();
+        const port = serialPort;
+        try {
+          if (serialReader) await serialReader.cancel();
+          else await port.close();
+        } catch (error) {
+          setStatus('error', 'Disconnect issue', error.message || 'Could not close the serial connection.');
+        }
+      }
+
+      async function connectArduino() {
+        if (connected) { await disconnectArduino(); return; }
+        if (!('serial' in navigator)) {
+          setStatus('error', 'Browser not supported', 'Open this page in Chrome or Edge to connect to the Arduino.');
+          return;
+        }
+        serialBusy = true;
+        disconnectRequested = false;
+        updateConnectionControls();
+        setStatus('demo', 'Choose a port', 'Select the Arduino USB serial port in the browser prompt.');
+        try {
+          const port = await navigator.serial.requestPort();
+          await port.open({ baudRate: 9600 });
+          serialPort = port;
+          connected = true;
+          serialBusy = false;
+          updateConnectionControls();
+          setStatus('connected', 'Arduino connected', 'Waiting for the first vote-count message…');
+          render();
+          void readSerial(port);
+        } catch (error) {
+          serialBusy = false;
+          updateConnectionControls();
+          if (error.name === 'NotFoundError') {
+            setStatus('demo', 'Demo preview', 'No port selected. Sample totals are still shown.');
+          } else {
+            setStatus('error', 'Could not connect', error.message || 'Check that the Arduino is plugged in and its serial port is available.');
+          }
+        }
+      }
+
+      function openWinnerConfirmation() {
+        if (totalCount() === 0 || resultsFinalized) return;
+        $('winnerConfirmStep').hidden = false;
+        $('winnerResultStep').hidden = true;
+        $('newCountConfirmStep').hidden = true;
+        const dialog = $('winnerDialog').querySelector('[role="dialog"]');
+        dialog.setAttribute('aria-labelledby', 'winnerConfirmTitle');
+        dialog.setAttribute('aria-describedby', 'winnerConfirmCopy');
+        $('winnerDialog').classList.add('open');
+        $('cancelDeclareButton').focus();
+      }
+
+      function confirmWinnerAnnouncement() {
+        if (totalCount() === 0 || resultsFinalized) return;
+        const highestCount = Math.max(...voteCounts);
+        const winners = candidates.map((candidate, index) => voteCounts[index] === highestCount ? { ...candidate, votes: voteCounts[index] } : null).filter(Boolean);
+        resultsFinalized = true;
+        setStatus('finalized', 'Result declared', 'The displayed totals are frozen in this dashboard.');
+        render();
+
+        if (winners.length > 1) {
+          $('winnerResultTitle').textContent = 'The count is tied';
+          $('winnerResultCopy').textContent = `No single winner: ${winners.map(candidate => candidate.name).join(' and ')} are tied with ${highestCount.toLocaleString()} votes each.`;
+        } else {
+          $('winnerResultTitle').textContent = 'Winner declared';
+          $('winnerResultCopy').textContent = `${winners[0].name} has the highest total, with ${highestCount.toLocaleString()} ${highestCount === 1 ? 'vote' : 'votes'}.`;
+        }
+        $('winnerScoreList').innerHTML = winners.map(candidate => `<div class="winner-score" style="--candidate-color:${candidate.color}"><span class="winner-symbol">${escapeHtml(candidate.symbol)}</span><span class="winner-candidate-name">${escapeHtml(candidate.name)}</span><strong class="winner-vote-total">${candidate.votes.toLocaleString()} ${candidate.votes === 1 ? 'vote' : 'votes'}</strong></div>`).join('');
+        $('winnerConfirmStep').hidden = true;
+        $('winnerResultStep').hidden = false;
+        const dialog = $('winnerDialog').querySelector('[role="dialog"]');
+        dialog.setAttribute('aria-labelledby', 'winnerResultTitle');
+        dialog.setAttribute('aria-describedby', 'winnerResultCopy');
+        $('closeWinnerButton').focus();
+      }
+
+      function openNewCountConfirmation() {
+        if (!resultsFinalized) return;
+        $('confirmNewCountButton').disabled = false;
+        $('winnerConfirmStep').hidden = true;
+        $('winnerResultStep').hidden = true;
+        $('newCountConfirmStep').hidden = false;
+        const dialog = $('winnerDialog').querySelector('[role="dialog"]');
+        dialog.setAttribute('aria-labelledby', 'newCountTitle');
+        dialog.setAttribute('aria-describedby', 'newCountCopy');
+        $('winnerDialog').classList.add('open');
+        $('cancelNewCountButton').focus();
+      }
+
+      async function confirmNewCount() {
+        $('confirmNewCountButton').disabled = true;
+        try {
+          if (connected) {
+            if (!serialPort || !serialPort.writable) throw new Error('The Arduino is not ready to reset. Reconnect it and try again.');
+            const writer = serialPort.writable.getWriter();
+            try { await writer.write(new TextEncoder().encode('RESET\n')); }
+            finally { writer.releaseLock(); }
+          }
+          resultsFinalized = false;
+          voteCounts = [0, 0, 0, 0];
+          render();
+          setStatus(connected ? 'connected' : 'demo', connected ? 'Arduino connected' : 'Demo preview', connected ? 'A new count has started. Waiting for votes.' : 'A new demo count has started.');
+          $('winnerDialog').classList.remove('open');
+          $('announceWinnerButton').focus();
+        } catch (error) {
+          $('newCountCopy').textContent = error.message || 'Could not start a new count. Check the Arduino connection and try again.';
+          $('confirmNewCountButton').disabled = false;
+        }
+      }
+
+      function closeWinnerDialog() {
+        $('winnerDialog').classList.remove('open');
+        $('announceWinnerButton').focus();
+      }
+
+      $('connectButton').addEventListener('click', connectArduino);
+      $('enterAppButton').addEventListener('click', () => {
+        $('welcomeView').hidden = true;
+        $('dashboardView').hidden = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        $('pageTitle').focus();
+      });
+      $('backToWelcomeButton').addEventListener('click', () => {
+        $('dashboardView').hidden = true;
+        $('welcomeView').hidden = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        $('enterAppButton').focus();
+      });
+      $('editToggle').addEventListener('click', openCandidateEditorPage);
+      $('editorBackButton').addEventListener('click', returnToDashboard);
+      $('cancelEdits').addEventListener('click', returnToDashboard);
+      $('candidateEditor').addEventListener('submit', saveCandidateEdits);
+      $('announceWinnerButton').addEventListener('click', () => resultsFinalized ? openNewCountConfirmation() : openWinnerConfirmation());
+      $('cancelDeclareButton').addEventListener('click', closeWinnerDialog);
+      $('confirmDeclareButton').addEventListener('click', confirmWinnerAnnouncement);
+      $('closeWinnerButton').addEventListener('click', closeWinnerDialog);
+      $('cancelNewCountButton').addEventListener('click', closeWinnerDialog);
+      $('confirmNewCountButton').addEventListener('click', confirmNewCount);
+      $('winnerDialog').addEventListener('click', event => {
+        if (event.target === $('winnerDialog')) closeWinnerDialog();
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && $('winnerDialog').classList.contains('open')) closeWinnerDialog();
+      });
+      $('sampleButton').addEventListener('click', () => {
+        if (connected || resultsFinalized) return;
+        voteCounts = [...sampleCounts];
+        setStatus('demo', 'Demo preview', 'Sample totals are shown. Connect an Arduino to display its counts.');
+        render();
+      });
+      $('demoVotes').addEventListener('click', event => {
+        const button = event.target.closest('[data-demo-index]');
+        if (!button || connected || resultsFinalized) return;
+        const index = Number(button.dataset.demoIndex);
+        voteCounts[index] += 1;
+        setStatus('demo', 'Demo preview', `Added a sample vote for ${candidates[index].name}.`);
+        render();
+      });
+
+      if (!('serial' in navigator)) {
+        $('connectButton').disabled = true;
+        setStatus('demo', 'Demo preview', 'USB serial needs Chrome or Edge. Sample controls work in this browser.');
+      }
+      updateConnectionControls();
+      render();
+    })();
+  </script>
+</body>
+</html>
