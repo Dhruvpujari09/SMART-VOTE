@@ -8,10 +8,10 @@ Use an Arduino Uno, Nano, or similar board and four normally-open push buttons:
 
 | Candidate | Arduino pin | Other button terminal |
 | --- | --- | --- |
-| Ananya Rao | D2 | GND |
-| Kabir Mehta | D3 | GND |
-| Mira Das | D4 | GND |
-| Arjun Sen | D5 | GND |
+| CANDIDATE 1 | D2 | GND |
+| CANDIDATE 2 | D3 | GND |
+| CANDIDATE 3 | D4 | GND |
+| CANDIDATE 4 | D5 | GND |
 
 The sketch enables each pin's internal pull-up resistor, so no external resistors are needed for this demo.
 
